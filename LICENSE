@@ -1,0 +1,21 @@
+HandPoint
+Copyright (c) 2026 Kelvin Thale. All rights reserved.
+
+This software, including the HandPoint Android app, its PC receiver, source code, builds, documentation and
+artwork, is the exclusive property of Kelvin Thale and is protected by copyright law.
+
+You may download the official HandPoint app from Kelvin Thale's releases and install it on your own devices for
+personal use. No other rights are granted. Without prior written permission from Kelvin Thale you may not:
+
+  - copy, redistribute, re-upload, sell, rent, sublicense or otherwise share the app or any part of it;
+  - modify, translate, decompile, disassemble or reverse engineer it, or create derivative works from it,
+    except where applicable law expressly permits this despite this restriction;
+  - remove or alter any copyright, attribution or ownership notice;
+  - publish it, or anything derived from it, under another name.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+HandPoint uses third-party components (Google MediaPipe, AndroidX, Jetpack Compose and Kotlin), which remain under
+their own licenses (Apache License 2.0). Nothing in this notice restricts your rights under those licenses.
