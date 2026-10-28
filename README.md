@@ -9,7 +9,7 @@ pinches become taps, scrolls and Back. Everything runs on the phone; the app has
 (Android 11 or newer).
 
 Install and setup steps are on the [release page](https://github.com/crazykelt75-eng/handpoint-releases/releases/latest).
-Updating from 0.2.x: uninstall the old version first (0.3.0 is signed with a new key).
+Updating from 0.2.x: uninstall the old version first (0.3.0 and later are signed with a new key).
 
 ## Rights
 
