@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101218">
+<title>Phone Mic to Bluetooth Speaker</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #101218; color: #eef0f4;
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center;
+  }
+  main { width: 100%; max-width: 440px; padding: 28px 20px 40px; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  .sub { margin: 0 0 24px; color: #9aa3b2; }
+  #toggle {
+    display: block; width: 220px; height: 220px; margin: 0 auto 14px; border: 0; border-radius: 50%;
+    background: #2b6cff; color: #fff; font-size: 24px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 0 0 0 rgba(43,108,255,.5); transition: background .2s, transform .1s;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  #toggle:active { transform: scale(.97); }
+  #toggle.live { background: #e5384f; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(229,56,79,.55); } 100% { box-shadow: 0 0 0 26px rgba(229,56,79,0); } }
+  #toggle svg { display: block; margin: 0 auto 8px; }
+  #status { text-align: center; min-height: 1.5em; margin-bottom: 18px; color: #9aa3b2; }
+  #status.err { color: #ff8a8a; }
+  #status.ok { color: #7ee2a8; }
+  .meter { height: 14px; border-radius: 7px; background: #232733; overflow: hidden; margin-bottom: 22px; }
+  #level { height: 100%; width: 0; background: linear-gradient(90deg, #35c47a 0%, #35c47a 65%, #f2c14e 80%, #e5384f 100%); background-size: 340px 100%; transition: width .05s linear; }
+  .card { background: #181b24; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .field { display: block; margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .label { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 600; }
+  input[type=range] { width: 100%; height: 32px; accent-color: #2b6cff; }
+  select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #333949; background: #101218; color: inherit; font: inherit; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 6px 0; cursor: pointer; }
+  .row input { width: 22px; height: 22px; accent-color: #2b6cff; flex: none; }
+  .row small { display: block; color: #9aa3b2; font-weight: 400; }
+  #mute { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #333949; background: #232733; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+  #mute.on { background: #5a2330; border-color: #e5384f; }
+  #mute:disabled { opacity: .45; }
+  details { color: #c3c9d4; }
+  summary { cursor: pointer; font-weight: 600; }
+  details ol { padding-left: 20px; margin: 10px 0 0; }
+  details li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Phone Mic</h1>
+  <p class="sub">Talk into your phone and hear it on your Bluetooth speaker.</p>
+
+  <button id="toggle" type="button" aria-pressed="false">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg>
+    <span id="toggleText">Start mic</span>
+  </button>
+  <div id="status" role="status">Connect your Bluetooth speaker, then tap Start.</div>
+  <div class="meter" aria-hidden="true"><div id="level"></div></div>
+
+  <div class="card">
+    <label class="field">
+      <span class="label">Volume <output id="volOut">100%</output></span>
+      <input type="range" id="vol" min="0" max="300" step="5" value="100">
+    </label>
+    <button id="mute" type="button" disabled>Mute</button>
+  </div>
+
+  <div class="card">
+    <label class="field">
+      <span class="label">Microphone</span>
+      <select id="micSel"><option value="">Phone default</option></select>
+    </label>
+    <label class="row"><input type="checkbox" id="clarity" checked>
+      <span>Voice clarity<small>Cuts rumble and handling noise, makes speech clearer</small></span></label>
+    <label class="row"><input type="checkbox" id="echo">
+      <span>Echo effect<small>Karaoke-style echo</small></span></label>
+  </div>
+
+  <details class="card">
+    <summary>Tips if it doesn't work</summary>
+    <ol>
+      <li>Pair and connect the Bluetooth speaker first, and play any music to check sound comes out of it.</li>
+      <li>Open this link in Chrome (Android) or Safari (iPhone), not inside another app's built-in browser.</li>
+      <li>If it asks for microphone permission, tap Allow. If you blocked it, tap the icon next to the web address, open Permissions, and allow Microphone.</li>
+      <li>Keep this page open and the screen on while you use it.</li>
+      <li>Loud squeal (feedback)? Move the phone away from the speaker, point it away, or lower the volume.</li>
+      <li>Bluetooth always adds a short delay, so you will hear yourself a moment late. That is normal for Bluetooth.</li>
+      <li>Sound is thin, like a phone call? Pick the phone's own microphone in the Microphone list, not the speaker's.</li>
+    </ol>
+  </details>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var toggleBtn = $("toggle"), toggleText = $("toggleText"), statusEl = $("status"), levelEl = $("level");
+  var vol = $("vol"), volOut = $("volOut"), muteBtn = $("mute"), micSel = $("micSel");
+  var clarity = $("clarity"), echo = $("echo");
+
+  var ctx = null, stream = null, source = null, nodes = null, wakeLock = null, raf = 0;
+  var running = false, muted = false, starting = false;
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = kind || "";
+  }
+
+  function volume() { return Number(vol.value) / 100; }
+
+  function rampGain(param, value) {
+    if (!ctx) return;
+    param.cancelScheduledValues(ctx.currentTime);
+    param.setTargetAtTime(value, ctx.currentTime, 0.03);
+  }
+
+  function buildGraph() {
+    // mic -> low-cut -> presence -> volume -> limiter -> speaker
+    //                                   \-> echo delay (feedback loop) -/
+    var lowCut = ctx.createBiquadFilter();
+    lowCut.type = "highpass"; lowCut.Q.value = 0.7;
+
+    var presence = ctx.createBiquadFilter();
+    presence.type = "peaking"; presence.frequency.value = 3000; presence.Q.value = 1;
+
+    var gain = ctx.createGain();
+
+    var delay = ctx.createDelay(1.0);
+    delay.delayTime.value = 0.28;
+    var feedback = ctx.createGain(); feedback.gain.value = 0.35;
+    var wet = ctx.createGain(); wet.gain.value = 0;
+
+    var limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20;
+    limiter.attack.value = 0.002; limiter.release.value = 0.12;
+
+    var analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+
+    lowCut.connect(presence);
+    presence.connect(analyser);
+    presence.connect(gain);
+    gain.connect(limiter);
+    gain.connect(delay);
+    delay.connect(feedback); feedback.connect(delay);
+    delay.connect(wet); wet.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    nodes = { input: lowCut, lowCut: lowCut, presence: presence, gain: gain, wet: wet, analyser: analyser };
+    applySettings(true);
+  }
+
+  function applySettings(immediate) {
+    if (!nodes) return;
+    var g = muted ? 0 : volume();
+    if (immediate) {
+      nodes.gain.gain.value = g;
+      nodes.wet.gain.value = echo.checked ? 0.45 : 0;
+    } else {
+      rampGain(nodes.gain.gain, g);
+      rampGain(nodes.wet.gain, echo.checked ? 0.45 : 0);
+    }
+    nodes.lowCut.frequency.value = clarity.checked ? 100 : 20;
+    nodes.presence.gain.value = clarity.checked ? 4 : 0;
+  }
+
+  function micConstraints() {
+    // Echo cancellation off: on Android it switches the phone into "call" mode,
+    // which can drop the Bluetooth speaker to low-quality call audio.
+    var audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    if (micSel.value) audio.deviceId = { exact: micSel.value };
+    return { audio: audio, video: false };
+  }
+
+  function explain(err) {
+    var name = err && err.name;
+    if (name === "NotAllowedError" || name === "SecurityError")
+      return "Microphone permission is blocked. Tap the icon next to the web address, allow Microphone, then tap Start again.";
+    if (name === "NotFoundError" || name === "OverconstrainedError")
+      return "No microphone found. Pick a different one in the Microphone list.";
+    if (name === "NotReadableError" || name === "AbortError")
+      return "The microphone is busy. Close other apps using it (calls, voice notes, camera) and try again.";
+    return "Could not start the microphone" + (err && err.message ? ": " + err.message : ".");
+  }
+
+  async function fillMicList() {
+    if (!navigator.mediaDevices.enumerateDevices) return;
+    try {
+      var devices = await navigator.mediaDevices.enumerateDevices();
+      var current = micSel.value;
+      var inputs = devices.filter(function (d) { return d.kind === "audioinput" && d.deviceId && d.deviceId !== "default" && d.deviceId !== "communications"; });
+      micSel.length = 1;
+      inputs.forEach(function (d, i) {
+        var opt = document.createElement("option");
+        opt.value = d.deviceId;
+        opt.textContent = d.label || ("Microphone " + (i + 1));
+        micSel.appendChild(opt);
+      });
+      micSel.value = inputs.some(function (d) { return d.deviceId === current; }) ? current : "";
+    } catch (e) { /* the list is optional */ }
+  }
+
+  async function openMic() {
+    var newStream = await navigator.mediaDevices.getUserMedia(micConstraints());
+    if (source) source.disconnect();
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    stream = newStream;
+    source = ctx.createMediaStreamSource(stream);
+    source.connect(nodes.input);
+    var track = stream.getAudioTracks()[0];
+    if (track) track.onended = function () {
+      if (running) { stop(); setStatus("The microphone was stopped by the phone. Tap Start to turn it back on.", "err"); }
+    };
+  }
+
+  async function keepScreenOn() {
+    try {
+      if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", function () { wakeLock = null; });
+      }
+    } catch (e) { /* not supported or refused: fine */ }
+  }
+
+  function meterLoop() {
+    var data = new Float32Array(nodes.analyser.fftSize);
+    var smooth = 0;
+    (function tick() {
+      if (!running) { levelEl.style.width = "0"; return; }
+      nodes.analyser.getFloatTimeDomainData(data);
+      var sum = 0;
+      for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
+      var rms = Math.sqrt(sum / data.length);
+      var db = 20 * Math.log10(rms + 1e-8);
+      var pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+      smooth = pct > smooth ? pct : smooth * 0.9 + pct * 0.1;
+      levelEl.style.width = (muted ? 0 : smooth).toFixed(1) + "%";
+      raf = requestAnimationFrame(tick);
+    })();
+  }
+
+  async function start() {
+    if (starting || running) return;
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("This browser can't use the microphone here. Open the link in Chrome or Safari.", "err");
+      return;
+    }
+    starting = true;
+    toggleText.textContent = "Starting...";
+    setStatus("Allow microphone access if asked...");
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!ctx) {
+        ctx = new AC({ latencyHint: "interactive" });
+        buildGraph();
+      }
+      if (ctx.state !== "running") await ctx.resume();
+      await openMic();
+      running = true;
+      toggleBtn.classList.add("live");
+      toggleBtn.setAttribute("aria-pressed", "true");
+      toggleText.textContent = "Stop";
+      muteBtn.disabled = false;
+      setStatus("Live: talk into your phone.", "ok");
+      keepScreenOn();
+      fillMicList();
+      meterLoop();
+    } catch (err) {
+      toggleText.textContent = "Start mic";
+      setStatus(explain(err), "err");
+    } finally {
+      starting = false;
+    }
+  }
+
+  function stop() {
+    running = false;
+    cancelAnimationFrame(raf);
+    if (source) { source.disconnect(); source = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (ctx && ctx.state === "running") ctx.suspend();
+    if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; }
+    toggleBtn.classList.remove("live");
+    toggleBtn.setAttribute("aria-pressed", "false");
+    toggleText.textContent = "Start mic";
+    muteBtn.disabled = true;
+    levelEl.style.width = "0";
+    setStatus("Mic is off.");
+  }
+
+  toggleBtn.addEventListener("click", function () { running ? stop() : start(); });
+
+  vol.addEventListener("input", function () {
+    volOut.textContent = vol.value + "%";
+    applySettings(false);
+  });
+
+  muteBtn.addEventListener("click", function () {
+    muted = !muted;
+    muteBtn.classList.toggle("on", muted);
+    muteBtn.textContent = muted ? "Unmute" : "Mute";
+    applySettings(false);
+    if (running) setStatus(muted ? "Muted." : "Live: talk into your phone.", muted ? "" : "ok");
+  });
+
+  clarity.addEventListener("change", function () { applySettings(false); });
+  echo.addEventListener("change", function () { applySettings(false); });
+
+  micSel.addEventListener("change", async function () {
+    if (!running) return;
+    try {
+      await openMic();
+      setStatus("Live: talk into your phone.", "ok");
+    } catch (err) {
+      setStatus(explain(err), "err");
+    }
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && running) {
+      keepScreenOn();
+      if (ctx && ctx.state !== "running") ctx.resume().catch(function () {});
+    }
+  });
+
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener("devicechange", fillMicList);
+  }
+})();
+</script>
+</body>
+</html>
