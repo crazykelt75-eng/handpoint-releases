@@ -32,6 +32,7 @@
   .meter { height: 14px; border-radius: 7px; background: #232733; overflow: hidden; margin-bottom: 22px; }
   #level { height: 100%; width: 0; background: linear-gradient(90deg, #35c47a 0%, #35c47a 65%, #f2c14e 80%, #e5384f 100%); background-size: 340px 100%; transition: width .05s linear; }
   .card { background: #181b24; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 17px; }
   .field { display: block; margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
   .label { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 600; }
@@ -39,10 +40,15 @@
   select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #333949; background: #101218; color: inherit; font: inherit; }
   .row { display: flex; align-items: center; gap: 12px; padding: 6px 0; cursor: pointer; }
   .row input { width: 22px; height: 22px; accent-color: #2b6cff; flex: none; }
-  .row small { display: block; color: #9aa3b2; font-weight: 400; }
-  #mute { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #333949; background: #232733; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+  .row small, .note { display: block; color: #9aa3b2; font-weight: 400; font-size: 14px; }
+  .btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #333949; background: #232733; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn:disabled { opacity: .45; }
   #mute.on { background: #5a2330; border-color: #e5384f; }
-  #mute:disabled { opacity: .45; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+  .seg button { padding: 12px 4px; border-radius: 10px; border: 1px solid #333949; background: #101218; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed=true] { background: #2b6cff; border-color: #2b6cff; color: #fff; }
+  #echoInfo { min-height: 1.4em; margin: 0 0 10px; font-size: 14px; color: #c3c9d4; }
+  #echoInfo.warn { color: #f2c14e; }
   details { color: #c3c9d4; }
   summary { cursor: pointer; font-weight: 600; }
   details ol { padding-left: 20px; margin: 10px 0 0; }
@@ -66,7 +72,19 @@
       <span class="label">Volume <output id="volOut">100%</output></span>
       <input type="range" id="vol" min="0" max="300" step="5" value="100">
     </label>
-    <button id="mute" type="button" disabled>Mute</button>
+    <button id="mute" class="btn" type="button" disabled>Mute</button>
+  </div>
+
+  <div class="card">
+    <h2>Echo blocker</h2>
+    <div class="seg" role="group" aria-label="Echo blocker strength">
+      <button type="button" data-strength="0" aria-pressed="false">Off</button>
+      <button type="button" data-strength="1" aria-pressed="true">Normal</button>
+      <button type="button" data-strength="2" aria-pressed="false">Strong</button>
+    </div>
+    <p id="echoInfo">When you tap Start, the speaker makes two short hisses so the page can measure the echo.</p>
+    <button id="recheck" class="btn" type="button" disabled>Check echo again</button>
+    <span class="note" style="margin-top:8px">Tap this after you move the phone or the speaker.</span>
   </div>
 
   <div class="card">
@@ -76,9 +94,20 @@
     </label>
     <label class="row"><input type="checkbox" id="clarity" checked>
       <span>Voice clarity<small>Cuts rumble and handling noise, makes speech clearer</small></span></label>
-    <label class="row"><input type="checkbox" id="echo">
-      <span>Echo effect<small>Karaoke-style echo</small></span></label>
+    <label class="row"><input type="checkbox" id="aec">
+      <span>Phone's own echo cancelling<small>Try this if you still hear echo. On some phones it makes the speaker sound like a phone call, or moves the sound to the phone. If that happens, turn it off.</small></span></label>
   </div>
+
+  <details class="card" open>
+    <summary>Hearing an echo?</summary>
+    <ol>
+      <li>Hold the phone close to your mouth, about a hand's width away.</li>
+      <li>Put the speaker a few steps away from you, facing away from the phone.</li>
+      <li>Set Echo blocker to Strong, or lower the volume a little.</li>
+      <li>Still there? Turn on "Phone's own echo cancelling".</li>
+      <li>If you hear each word only once, a split second late, that's the Bluetooth delay. Every Bluetooth speaker has it, and no app can remove it. Only a speaker plugged in with a cable avoids it. People listening across the room don't notice it much.</li>
+    </ol>
+  </details>
 
   <details class="card">
     <summary>Tips if it doesn't work</summary>
@@ -87,12 +116,159 @@
       <li>Open this link in Chrome (Android) or Safari (iPhone), not inside another app's built-in browser.</li>
       <li>If it asks for microphone permission, tap Allow. If you blocked it, tap the icon next to the web address, open Permissions, and allow Microphone.</li>
       <li>Keep this page open and the screen on while you use it.</li>
-      <li>Loud squeal (feedback)? Move the phone away from the speaker, point it away, or lower the volume.</li>
-      <li>Bluetooth always adds a short delay, so you will hear yourself a moment late. That is normal for Bluetooth.</li>
-      <li>Sound is thin, like a phone call? Pick the phone's own microphone in the Microphone list, not the speaker's.</li>
+      <li>Sound is thin, like a phone call? Pick the phone's own microphone in the Microphone list, not the speaker's, and turn off "Phone's own echo cancelling".</li>
     </ol>
   </details>
 </main>
+
+<!-- Echo blocker: runs on the audio thread. It knows exactly what it sent to the speaker, measures how
+     loud and how late that comes back into the mic, and turns the mic down whenever what it hears is
+     just the speaker's echo rather than your voice. -->
+<script type="text/plain" id="echoBlockerSrc">
+class EchoBlocker extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.bs = 128 / sampleRate;                       // seconds per audio block
+    this.hist = new Float32Array(Math.ceil(1.5 / this.bs)); // level sent to the speaker, per block
+    this.hp = 0;
+    this.volume = 1;
+    this.strength = 1;
+    this.echoGain = 0;                                // how loud the speaker comes back, per unit sent
+    this.setWindow(0.03, 0.7);
+    this.env = 0;
+    this.envRel = Math.exp(-this.bs / 0.04);
+    this.att = Math.exp(-this.bs / 0.003);
+    this.rel = Math.exp(-this.bs / 0.03);
+    this.g = 1;
+    this.cal = null;
+    this.port.onmessage = (e) => {
+      const m = e.data || {};
+      if (typeof m.volume === "number") this.volume = m.volume;
+      if (typeof m.strength === "number") this.strength = m.strength;
+      if (m.calibrate) this.startCal();
+    };
+  }
+  setWindow(a, b) {
+    this.lagMin = Math.max(1, Math.round(a / this.bs));
+    this.lagMax = Math.min(this.hist.length - 1, Math.max(this.lagMin, Math.round(b / this.bs)));
+  }
+  startCal() {
+    const n = (s) => Math.round(s / this.bs);
+    const c = { i: 0, pre: n(0.15), burst: n(0.2), trial: n(0.9), floorSum: 0, recs: [[], []], amp: 0.15 };
+    c.total = c.pre + c.trial * c.recs.length;
+    this.cal = c;
+  }
+  // One hiss: returns {d, level} if its echo came back, null if nothing came back,
+  // or "noisy" if the mic heard something that wasn't the hiss's echo (someone talking).
+  analyseTrial(rec, floor, burst) {
+    const ms = (s) => Math.round(s / this.bs);
+    const lo = Math.max(1, ms(0.02));
+    let peak = 0;
+    for (let i = lo; i < rec.length; i++) if (rec[i] > peak) peak = rec[i];
+    if (!(peak > floor * 1.6 && peak > 1e-4)) return null;
+    const half = floor + 0.5 * (peak - floor);
+    let d = lo;
+    while (d < rec.length && rec[d] < half) d++;
+    if (d > ms(0.6)) return "noisy";
+    const pow = (a, b) => {
+      let s = 0;
+      for (let i = a; i < b; i++) s += rec[i] * rec[i];
+      return Math.sqrt(Math.max(s / Math.max(1, b - a) - floor * floor, 0));
+    };
+    const level = pow(d, Math.min(d + burst, rec.length));
+    const after = d + burst + ms(0.12);
+    if (after < rec.length - 3 && level < 2 * pow(after, rec.length)) return "noisy"; // echo must stop when the hiss stops
+    return { d: d, level: level };
+  }
+  finishCal() {
+    const c = this.cal;
+    this.cal = null;
+    const sent = c.amp * this.volume;
+    if (sent <= 1e-6) { this.port.postMessage({ cal: "skipped" }); return; }
+    const floor = Math.sqrt(c.floorSum / c.pre);
+    const r = c.recs.map((rec) => this.analyseTrial(rec, floor, c.burst));
+    const hits = r.filter((x) => x && x !== "noisy");
+    if (hits.length === 2 && Math.abs(hits[0].d - hits[1].d) * this.bs <= 0.04 &&
+        Math.max(hits[0].level, hits[1].level) <= 2 * Math.min(hits[0].level, hits[1].level)) {
+      const delay = (hits[0].d + hits[1].d) / 2 * this.bs;
+      this.echoGain = Math.min(hits[0].level, hits[1].level) / sent;
+      this.setWindow(delay - 0.03, delay + 0.12);
+      this.port.postMessage({ cal: "done", detected: true, echoGain: this.echoGain, delayMs: Math.round(delay * 1000) });
+    } else if (r[0] === null && r[1] === null) {
+      this.echoGain = 0.8 * floor / sent;
+      this.setWindow(0.03, 0.7);
+      this.port.postMessage({ cal: "done", detected: false, echoGain: this.echoGain });
+    } else {
+      this.echoGain = 0.2;   // couldn't tell: assume a moderate echo
+      this.setWindow(0.03, 0.7);
+      this.port.postMessage({ cal: "done", unsure: true, echoGain: this.echoGain });
+    }
+  }
+  process(inputs, outputs) {
+    const inp = inputs[0] && inputs[0][0];
+    const out = outputs[0][0];
+    const N = out.length;
+    let s = 0;
+    if (inp) for (let i = 0; i < N; i++) s += inp[i] * inp[i];
+    const rms = Math.sqrt(s / N);
+    let sentRms = 0;
+
+    if (this.cal) {
+      // Measuring: stay quiet, then play a short hiss and listen for when and how loud it comes back.
+      const c = this.cal;
+      if (c.i < c.pre) {
+        out.fill(0);
+        c.floorSum += rms * rms;
+      } else {
+        const k = c.i - c.pre;
+        c.recs[Math.floor(k / c.trial)].push(rms);
+        if (k % c.trial < c.burst) {
+          let ss = 0;
+          for (let i = 0; i < N; i++) { const v = (Math.random() * 2 - 1) * c.amp * 1.732; out[i] = v; ss += v * v; }
+          sentRms = Math.sqrt(ss / N);
+        } else {
+          out.fill(0);
+        }
+      }
+      c.i++;
+      if (c.i >= c.total) { this.finishCal(); this.g = 1; this.env = 0; }
+    } else {
+      this.env = Math.max(rms, this.env * this.envRel);
+      let target = 1;
+      if (this.strength > 0 && this.echoGain > 0) {
+        const L = this.hist.length;
+        let m = 0;
+        for (let k = this.lagMin; k <= this.lagMax; k++) {
+          const v = this.hist[(this.hp - k + L) % L];
+          if (v > m) m = v;
+        }
+        const expectedEcho = this.echoGain * m;
+        if (expectedEcho > 1e-7) {
+          const marginDb = this.strength > 1 ? 12 : 6;
+          const floorGain = this.strength > 1 ? 0.03 : 0.12;
+          const rdb = 20 * Math.log10(this.env / expectedEcho + 1e-9);
+          const t = Math.min(1, Math.max(0, rdb / marginDb));
+          target = Math.pow(floorGain, 1 - t);
+        }
+      }
+      const g0 = this.g;
+      const g1 = target + (g0 - target) * (target > g0 ? this.att : this.rel);
+      let ss = 0;
+      for (let i = 0; i < N; i++) {
+        const v = inp ? inp[i] * (g0 + (g1 - g0) * (i + 1) / N) : 0;
+        out[i] = v;
+        ss += v * v;
+      }
+      this.g = g1;
+      sentRms = Math.sqrt(ss / N);
+    }
+    this.hist[this.hp] = sentRms * this.volume;
+    this.hp = (this.hp + 1) % this.hist.length;
+    return true;
+  }
+}
+registerProcessor("echo-blocker", EchoBlocker);
+</script>
 
 <script>
 (function () {
@@ -100,17 +276,26 @@
   var $ = function (id) { return document.getElementById(id); };
   var toggleBtn = $("toggle"), toggleText = $("toggleText"), statusEl = $("status"), levelEl = $("level");
   var vol = $("vol"), volOut = $("volOut"), muteBtn = $("mute"), micSel = $("micSel");
-  var clarity = $("clarity"), echo = $("echo");
+  var clarity = $("clarity"), aec = $("aec"), recheckBtn = $("recheck"), echoInfo = $("echoInfo");
+  var segButtons = Array.prototype.slice.call(document.querySelectorAll(".seg button"));
 
-  var ctx = null, stream = null, source = null, nodes = null, wakeLock = null, raf = 0;
-  var running = false, muted = false, starting = false;
+  var ctx = null, stream = null, source = null, nodes = null, blocker = null, wakeLock = null, raf = 0;
+  var running = false, muted = false, starting = false, checking = false;
+  var strength = 1, echo = null;   // echo: last measurement from the echo blocker
+  var LIVE = "Live: talk into your phone.";
 
   function setStatus(text, kind) {
     statusEl.textContent = text;
     statusEl.className = kind || "";
   }
 
+  function setEchoInfo(text, warn) {
+    echoInfo.textContent = text;
+    echoInfo.className = warn ? "warn" : "";
+  }
+
   function volume() { return Number(vol.value) / 100; }
+  function sentVolume() { return muted ? 0 : volume(); }
 
   function rampGain(param, value) {
     if (!ctx) return;
@@ -118,9 +303,28 @@
     param.setTargetAtTime(value, ctx.currentTime, 0.03);
   }
 
-  function buildGraph() {
-    // mic -> low-cut -> presence -> volume -> limiter -> speaker
-    //                                   \-> echo delay (feedback loop) -/
+  async function loadBlocker() {
+    if (!ctx.audioWorklet || typeof AudioWorkletNode === "undefined") return null;
+    var src = $("echoBlockerSrc").textContent;
+    var url = URL.createObjectURL(new Blob([src], { type: "application/javascript" }));
+    try {
+      await ctx.audioWorklet.addModule(url);
+    } catch (e) {
+      try { await ctx.audioWorklet.addModule("data:application/javascript;charset=utf-8," + encodeURIComponent(src)); }
+      catch (e2) { return null; }
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    var node = new AudioWorkletNode(ctx, "echo-blocker", {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1],
+      channelCount: 1, channelCountMode: "explicit", channelInterpretation: "speakers"
+    });
+    node.port.onmessage = onBlockerMessage;
+    return node;
+  }
+
+  async function buildGraph() {
+    // mic -> low-cut -> presence -> echo blocker -> volume -> limiter -> speaker
     var lowCut = ctx.createBiquadFilter();
     lowCut.type = "highpass"; lowCut.Q.value = 0.7;
 
@@ -129,11 +333,6 @@
 
     var gain = ctx.createGain();
 
-    var delay = ctx.createDelay(1.0);
-    delay.delayTime.value = 0.28;
-    var feedback = ctx.createGain(); feedback.gain.value = 0.35;
-    var wet = ctx.createGain(); wet.gain.value = 0;
-
     var limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20;
     limiter.attack.value = 0.002; limiter.release.value = 0.12;
@@ -141,37 +340,74 @@
     var analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
 
+    blocker = await loadBlocker();
+
     lowCut.connect(presence);
     presence.connect(analyser);
-    presence.connect(gain);
+    if (blocker) { presence.connect(blocker); blocker.connect(gain); }
+    else { presence.connect(gain); }
     gain.connect(limiter);
-    gain.connect(delay);
-    delay.connect(feedback); feedback.connect(delay);
-    delay.connect(wet); wet.connect(limiter);
     limiter.connect(ctx.destination);
 
-    nodes = { input: lowCut, lowCut: lowCut, presence: presence, gain: gain, wet: wet, analyser: analyser };
+    nodes = { input: lowCut, lowCut: lowCut, presence: presence, gain: gain, analyser: analyser };
     applySettings(true);
   }
 
   function applySettings(immediate) {
     if (!nodes) return;
-    var g = muted ? 0 : volume();
-    if (immediate) {
-      nodes.gain.gain.value = g;
-      nodes.wet.gain.value = echo.checked ? 0.45 : 0;
-    } else {
-      rampGain(nodes.gain.gain, g);
-      rampGain(nodes.wet.gain, echo.checked ? 0.45 : 0);
-    }
+    if (immediate) nodes.gain.gain.value = sentVolume();
+    else rampGain(nodes.gain.gain, sentVolume());
     nodes.lowCut.frequency.value = clarity.checked ? 100 : 20;
     nodes.presence.gain.value = clarity.checked ? 4 : 0;
+    if (blocker) blocker.port.postMessage({ volume: sentVolume(), strength: strength });
+    describeEcho();
+  }
+
+  function describeEcho() {
+    if (!ctx) return;
+    if (!blocker) { setEchoInfo("The echo blocker doesn't work in this browser. Try the latest Chrome or Safari.", true); return; }
+    if (checking) { setEchoInfo("Checking echo. You'll hear two short hisses. Stay quiet for 2 seconds..."); return; }
+    if (!echo) return;
+    if (echo.skipped) { setEchoInfo("Couldn't check the echo while the volume is off. Turn the volume up, then tap Check echo again."); return; }
+    if (strength === 0) { setEchoInfo("Echo blocker is off."); return; }
+    if (echo.unsure) { setEchoInfo("Couldn't measure the echo clearly because of other sounds. Stay quiet for 2 seconds and tap Check echo again.", true); return; }
+    var delay = echo.delayMs ? " Bluetooth delay: about " + echo.delayMs + " ms." : "";
+    var loop = echo.echoGain * volume();
+    if (!echo.detected || loop < 0.1) {
+      setEchoInfo("Echo pickup: low. The echo blocker has it covered." + delay);
+    } else if (loop < 0.35) {
+      setEchoInfo("Echo pickup: medium. The echo blocker is cutting it out." + delay);
+    } else {
+      setEchoInfo("Echo pickup: high. Hold the phone closer to your mouth, move the speaker further away, or lower the volume, then tap Check echo again." + delay, true);
+    }
+  }
+
+  function onBlockerMessage(e) {
+    var m = e.data || {};
+    if (m.cal === "done" || m.cal === "skipped") {
+      checking = false;
+      echo = m.cal === "skipped" ? { skipped: true } : m;
+      recheckBtn.disabled = !running;
+      if (running) setStatus(muted ? "Muted." : LIVE, muted ? "" : "ok");
+      describeEcho();
+    }
+  }
+
+  function checkEcho() {
+    if (!blocker || !running || checking) return;
+    checking = true;
+    recheckBtn.disabled = true;
+    setStatus("Checking echo...");
+    blocker.port.postMessage({ volume: sentVolume(), strength: strength });
+    blocker.port.postMessage({ calibrate: true });
+    describeEcho();
   }
 
   function micConstraints() {
-    // Echo cancellation off: on Android it switches the phone into "call" mode,
+    // Echo cancelling is off unless asked for: on Android it switches the phone into "call" mode,
     // which can drop the Bluetooth speaker to low-quality call audio.
-    var audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    var on = aec.checked;
+    var audio = { echoCancellation: on, noiseSuppression: on, autoGainControl: false };
     if (micSel.value) audio.deviceId = { exact: micSel.value };
     return { audio: audio, video: false };
   }
@@ -217,6 +453,17 @@
     };
   }
 
+  async function reopenMic() {
+    if (!running) return;
+    try {
+      await openMic();
+      setStatus(LIVE, "ok");
+      checkEcho();
+    } catch (err) {
+      setStatus(explain(err), "err");
+    }
+  }
+
   async function keepScreenOn() {
     try {
       if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) {
@@ -256,7 +503,7 @@
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!ctx) {
         ctx = new AC({ latencyHint: "interactive" });
-        buildGraph();
+        await buildGraph();
       }
       if (ctx.state !== "running") await ctx.resume();
       await openMic();
@@ -265,10 +512,11 @@
       toggleBtn.setAttribute("aria-pressed", "true");
       toggleText.textContent = "Stop";
       muteBtn.disabled = false;
-      setStatus("Live: talk into your phone.", "ok");
+      setStatus(LIVE, "ok");
       keepScreenOn();
       fillMicList();
       meterLoop();
+      if (blocker) checkEcho(); else describeEcho();
     } catch (err) {
       toggleText.textContent = "Start mic";
       setStatus(explain(err), "err");
@@ -279,6 +527,7 @@
 
   function stop() {
     running = false;
+    checking = false;
     cancelAnimationFrame(raf);
     if (source) { source.disconnect(); source = null; }
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
@@ -288,6 +537,7 @@
     toggleBtn.setAttribute("aria-pressed", "false");
     toggleText.textContent = "Start mic";
     muteBtn.disabled = true;
+    recheckBtn.disabled = true;
     levelEl.style.width = "0";
     setStatus("Mic is off.");
   }
@@ -304,21 +554,21 @@
     muteBtn.classList.toggle("on", muted);
     muteBtn.textContent = muted ? "Unmute" : "Mute";
     applySettings(false);
-    if (running) setStatus(muted ? "Muted." : "Live: talk into your phone.", muted ? "" : "ok");
+    if (running && !checking) setStatus(muted ? "Muted." : LIVE, muted ? "" : "ok");
   });
 
+  segButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      strength = Number(b.getAttribute("data-strength"));
+      segButtons.forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      applySettings(false);
+    });
+  });
+
+  recheckBtn.addEventListener("click", checkEcho);
   clarity.addEventListener("change", function () { applySettings(false); });
-  echo.addEventListener("change", function () { applySettings(false); });
-
-  micSel.addEventListener("change", async function () {
-    if (!running) return;
-    try {
-      await openMic();
-      setStatus("Live: talk into your phone.", "ok");
-    } catch (err) {
-      setStatus(explain(err), "err");
-    }
-  });
+  aec.addEventListener("change", reopenMic);
+  micSel.addEventListener("change", reopenMic);
 
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible" && running) {
